@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catch Game</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+    <div id="game-container">
+        <div id="start-screen" class="screen">
+            <h1>Catch Game</h1>
+            <button id="start-btn">Start Game</button>
+            <div class="instructions">
+                <p>Catch the falling objects with your basket!</p>
+                <p>Tap left side to move left, right side to move right.</p>
+            </div>
+        </div>
+        
+        <div id="game-screen" class="screen hidden">
+            <div id="score-display">Score: 0</div>
+            <div id="player"></div>
+            <canvas id="game-canvas"></canvas>
+        </div>
+        
+        <div id="end-screen" class="screen hidden">
+            <h1>Game Over</h1>
+            <div id="final-score">Your score: 0</div>
+            <button id="restart-btn">Play Again</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

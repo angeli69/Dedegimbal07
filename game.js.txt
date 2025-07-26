@@ -1,0 +1,277 @@
+// Game variables
+let canvas, ctx;
+let player;
+let gameObjects = [];
+let score = 0;
+let gameSpeed = 2;
+let gameRunning = false;
+let lastTime = 0;
+let spawnRate = 2000; // milliseconds
+let lastSpawn = 0;
+
+// DOM elements
+const startScreen = document.getElementById('start-screen');
+const gameScreen = document.getElementById('game-screen');
+const endScreen = document.getElementById('end-screen');
+const startBtn = document.getElementById('start-btn');
+const restartBtn = document.getElementById('restart-btn');
+const scoreDisplay = document.getElementById('score-display');
+const finalScoreDisplay = document.getElementById('final-score');
+const playerElement = document.getElementById('player');
+
+// Audio elements
+const clickSound = new Audio('sounds/click.mp3');
+const catchSound = new Audio('sounds/catch.mp3');
+const gameOverSound = new Audio('sounds/gameover.mp3');
+
+// Initialize game
+function init() {
+    // Set up canvas
+    canvas = document.getElementById('game-canvas');
+    ctx = canvas.getContext('2d');
+    
+    // Set canvas size
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Set up player
+    player = {
+        x: canvas.width / 2 - 40,
+        y: canvas.height - 60,
+        width: 80,
+        height: 40,
+        speed: 8,
+        movingLeft: false,
+        movingRight: false
+    };
+    
+    // Event listeners
+    startBtn.addEventListener('click', startGame);
+    restartBtn.addEventListener('click', startGame);
+    
+    // Touch controls
+    canvas.addEventListener('touchstart', handleTouch);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+    
+    // Show start screen
+    startScreen.classList.remove('hidden');
+    gameScreen.classList.add('hidden');
+    endScreen.classList.add('hidden');
+}
+
+// Resize canvas to fit window
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    if (player) {
+        player.y = canvas.height - 60;
+    }
+}
+
+// Start game
+function startGame() {
+    clickSound.play();
+    
+    // Reset game state
+    score = 0;
+    gameSpeed = 2;
+    spawnRate = 2000;
+    gameObjects = [];
+    scoreDisplay.textContent = `Score: ${score}`;
+    
+    // Position player
+    player.x = canvas.width / 2 - 40;
+    playerElement.style.left = `${player.x}px`;
+    
+    // Show game screen
+    startScreen.classList.add('hidden');
+    endScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    
+    // Start game loop
+    gameRunning = true;
+    lastTime = performance.now();
+    lastSpawn = lastTime;
+    requestAnimationFrame(gameLoop);
+}
+
+// Game over
+function gameOver() {
+    gameOverSound.play();
+    gameRunning = false;
+    finalScoreDisplay.textContent = `Your score: ${score}`;
+    startScreen.classList.add('hidden');
+    gameScreen.classList.add('hidden');
+    endScreen.classList.remove('hidden');
+}
+
+// Game loop
+function gameLoop(timestamp) {
+    if (!gameRunning) return;
+    
+    // Calculate delta time
+    const deltaTime = timestamp - lastTime;
+    lastTime = timestamp;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Update player
+    updatePlayer(deltaTime);
+    
+    // Spawn new objects
+    if (timestamp - lastSpawn > spawnRate) {
+        spawnObject();
+        lastSpawn = timestamp;
+    }
+    
+    // Update and draw objects
+    updateObjects(deltaTime);
+    drawObjects();
+    
+    // Check for collisions
+    checkCollisions();
+    
+    // Continue game loop
+    requestAnimationFrame(gameLoop);
+}
+
+// Update player position
+function updatePlayer(deltaTime) {
+    const speedFactor = deltaTime / 16; // Normalize speed
+    
+    if (player.movingLeft && player.x > 0) {
+        player.x -= player.speed * speedFactor;
+    }
+    if (player.movingRight && player.x < canvas.width - player.width) {
+        player.x += player.speed * speedFactor;
+    }
+    
+    // Update player element position
+    playerElement.style.left = `${player.x}px`;
+}
+
+// Spawn falling object
+function spawnObject() {
+    const size = Math.random() * 30 + 20;
+    const objectType = Math.random() > 0.7 ? 'bad' : 'good';
+    
+    const object = {
+        x: Math.random() * (canvas.width - size),
+        y: -size,
+        width: size,
+        height: size,
+        speed: Math.random() * 2 + gameSpeed,
+        type: objectType,
+        image: objectType === 'good' ? 'images/object1.png' : 'images/object2.png'
+    };
+    
+    gameObjects.push(object);
+}
+
+// Update all falling objects
+function updateObjects(deltaTime) {
+    const speedFactor = deltaTime / 16; // Normalize speed
+    
+    for (let i = gameObjects.length - 1; i >= 0; i--) {
+        const obj = gameObjects[i];
+        obj.y += obj.speed * speedFactor;
+        
+        // Remove objects that fall off screen
+        if (obj.y > canvas.height) {
+            if (obj.type === 'good') {
+                gameOver();
+                return;
+            }
+            gameObjects.splice(i, 1);
+        }
+    }
+}
+
+// Draw all falling objects
+function drawObjects() {
+    gameObjects.forEach(obj => {
+        // Draw image if available, otherwise draw rectangle
+        const img = new Image();
+        img.src = obj.image;
+        ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
+    });
+}
+
+// Check for collisions
+function checkCollisions() {
+    for (let i = gameObjects.length - 1; i >= 0; i--) {
+        const obj = gameObjects[i];
+        
+        if (
+            obj.y + obj.height > player.y &&
+            obj.y < player.y + player.height &&
+            obj.x + obj.width > player.x &&
+            obj.x < player.x + player.width
+        ) {
+            // Collision detected
+            if (obj.type === 'good') {
+                catchSound.play();
+                score += 10;
+                scoreDisplay.textContent = `Score: ${score}`;
+                
+                // Increase difficulty
+                if (score % 50 === 0) {
+                    gameSpeed += 0.5;
+                }
+                if (score % 100 === 0 && spawnRate > 500) {
+                    spawnRate -= 200;
+                }
+            } else {
+                gameOver();
+                return;
+            }
+            
+            gameObjects.splice(i, 1);
+        }
+    }
+}
+
+// Handle keyboard input
+function handleKeyDown(e) {
+    if (e.key === 'ArrowLeft') {
+        player.movingLeft = true;
+    } else if (e.key === 'ArrowRight') {
+        player.movingRight = true;
+    }
+}
+
+function handleKeyUp(e) {
+    if (e.key === 'ArrowLeft') {
+        player.movingLeft = false;
+    } else if (e.key === 'ArrowRight') {
+        player.movingRight = false;
+    }
+}
+
+// Handle touch input
+function handleTouch(e) {
+    e.preventDefault();
+    const touchX = e.touches[0].clientX;
+    
+    if (touchX < canvas.width / 2) {
+        // Left side tapped - move left
+        player.movingLeft = true;
+        player.movingRight = false;
+    } else {
+        // Right side tapped - move right
+        player.movingRight = true;
+        player.movingLeft = false;
+    }
+    
+    // Stop movement after a short delay
+    setTimeout(() => {
+        player.movingLeft = false;
+        player.movingRight = false;
+    }, 100);
+}
+
+// Initialize game when loaded
+window.addEventListener('load', init);
